@@ -22,6 +22,9 @@ PACKAGES = sts hcr omd sentistrength sanders semeval2013
 
 all: packages
 
+requirements:
+	pip install -r requirements.txt
+
 packages: $(PACKAGES)
 sts: $(STS_PATH)
 $(STS_ZIP):
@@ -70,5 +73,5 @@ clobber: clean
 		$(SANDERS_ZIP) \
 		$(SEMEVAL2013_PATH)
 
-.PHONY: all packages $(PACKAGES) clean clobber
+.PHONY: all requirements packages $(PACKAGES) clean clobber
 .DELETE_ON_ERROR:
