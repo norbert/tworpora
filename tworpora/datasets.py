@@ -5,9 +5,10 @@ import logging
 
 
 from collections import OrderedDict, Counter
-from . import Bunch, Package
+from . import Bunch, Package, Database, HTMLReader, APIReader
 from . import get_package_dir
 from . import download_package, download_package_file
+from . import read_text, read_texts
 
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,25 @@ SENTISTRENGTH = Package('sentistrength',
          '6humanCodedDataSets.zip'),
     filename='twitter4242.txt',
     mapping=['mean_positive', 'mean_negative', 'text'])
+SANDERS = Package('sanders',
+    url=('http://www.sananalytics.com/lab/twitter-sentiment'
+         '/sanders-twitter-0.2.zip'),
+    filename='corpus.csv',
+    mapping=['query', 'label', 'id'])
+SEMEVAL2013 = Package('semeval2013',
+    url=('http://www.cs.york.ac.uk/semeval-2013/task2/'
+         '/data/uploads/datasets/'),
+    filenames={
+        'a': {None: 'tweeti-a.dist.tsv', 'dev': 'tweeti-a.dev.dist.tsv'},
+        'b': {None: 'tweeti-b.dist.tsv', 'dev': 'tweeti-b.dev.dist.tsv'}
+    },
+    mapping={
+        'a':['id', 'user_id', 'phrase_start', 'phrase_end', 'label'],
+        'b':['id', 'user_id', 'label']
+    },
+    labels={'positive': 'positive', 'negative': 'negative',
+            'neutral': 'neutral',
+            'objective': 'neutral', 'objective-OR-neutral': 'neutral'})
 
 
 def parse_row(row, mapping, labels=None):
@@ -166,11 +186,65 @@ def load_sentistrength(data_home=None):
             label = score(float(record['mean_positive']),
                           float(record['mean_negative']))
             labels.append(label)
-    return Bunch(name=SENTISTRENGTH.name, data=records, target=labels)
+    return Bunch(data=records, target=labels)
+
+
+def load_sanders(data_home=None):
+    package_dir = get_package_dir(SANDERS.name, data_home)
+    filename = os.path.join(package_dir, SANDERS.filename)
+    if not os.path.exists(filename):
+        raise RuntimeError
+    records = []
+    labels = []
+    database = Database(package_dir + '.db')
+    with open(filename, 'U') as infile:
+        reader = csv.reader(infile, dialect=csv.excel)
+        for row in reader:
+            record, label = parse_row(row, SANDERS.mapping)
+            text = read_text(database, record['id'],
+                             reader=APIReader, sleep=6)
+            record['text'] = text
+            records.append(record)
+            labels.append(label)
+    return Bunch(name=SANDERS.name, data=records, target=labels)
+
+
+def load_semeval2013(data_home=None):
+    package_dir = get_package_dir(SEMEVAL2013.name, data_home)
+    records = []
+    labels = []
+    database = Database(package_dir + '.db')
+
+    def merge_texts(records):
+        status_ids = [r['id'] for r in records]
+        user_ids = [r.get('user_id') for r in records]
+        texts = read_texts(database, status_ids, user_ids)
+        for idx, record in enumerate(records):
+            record['text'] = texts[idx]
+    for partition in SEMEVAL2013.filenames:
+        mapping = SEMEVAL2013.mapping[partition]
+        filenames = SEMEVAL2013.filenames[partition]
+        for split in filenames:
+            filename = os.path.join(package_dir, filenames[split])
+            if not os.path.exists(filename):
+                raise RuntimeError
+            with open(filename, 'U') as infile:
+                reader = csv.reader(infile, dialect=None,
+                                    delimiter='\t')
+                for row in reader:
+                    record, label = parse_row(row, mapping)
+                    record['split'] = split
+                    record['partition'] = partition
+                    records.append(record)
+                    labels.append(label if partition == 'b' else None)
+    merge_texts(records)
+    return Bunch(name=SEMEVAL2013.name, data=records, target=labels)
 
 
 sentiment = ['load_sts_test',
              'load_hcr',
              'load_omd',
-             'load_sentistrength']
+             'load_sentistrength',
+             'load_sanders',
+             'load_semeval2013']
 __all__ = ['sentiment'] + sentiment
