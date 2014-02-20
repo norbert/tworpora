@@ -232,7 +232,7 @@ def load_semeval2013(data_home=None):
                 reader = csv.reader(infile, dialect=None,
                                     delimiter='\t')
                 for row in reader:
-                    record, label = parse_row(row, mapping)
+                    record, label = parse_row(row, mapping, SEMEVAL2013.labels)
                     record['split'] = split
                     record['partition'] = partition
                     records.append(record)
