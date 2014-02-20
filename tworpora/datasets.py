@@ -32,7 +32,7 @@ OMD = Package('omd',
          '/raw/1deb8fe45f603a61d723cc9b987ae4f36cbe6b16'
          '/data/shamma/orig/'
          'debate08_sentiment_tweets.tsv'),
-    mapping=(['id', None, 'text', 'user_id', None] +
+    mapping=(['id', None, 'text', 'screen_name', None] +
              ['rating%d' % i for i in range(1, 9)]),
     labels={'2': 'positive', '1': 'negative', '3': 'mixed', '4': 'other'})
 SENTISTRENGTH = Package('sentistrength',
