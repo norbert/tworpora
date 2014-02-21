@@ -61,12 +61,12 @@ SEMEVAL2013 = Package('semeval2013',
             'objective': 'neutral', 'objective-OR-neutral': 'neutral'})
 
 
-def parse_row(row, mapping, labels=None):
+def parse_row(row, mapping, labels=None, encoding='utf-8'):
     record, label = OrderedDict(), None
     for idx, key in enumerate(mapping):
         if not key:
             continue
-        value = row[idx] if len(row) > idx else None
+        value = unicode(row[idx], encoding) if len(row) > idx else None
         value = value.strip() if value else None
         if key == 'label':
             if labels:
@@ -85,7 +85,7 @@ def load_sts_test(data_home=None):
         raise RuntimeError
     records = []
     labels = []
-    with open(filename, 'U') as infile:
+    with open(filename, 'rb') as infile:
         reader = csv.reader(infile, dialect=csv.excel)
         for row in reader:
             record, label = parse_row(row, STS.mapping, STS.labels)
@@ -108,7 +108,7 @@ def load_hcr(data_home=None):
         filename = os.path.join(package_dir, os.path.basename(source_path))
         if not os.path.exists(filename):
             download_package_file(HCR.name, source_path, url, data_home)
-        with open(filename, 'U') as infile:
+        with open(filename, 'rb') as infile:
             reader = csv.reader(infile)
             next(reader)
             for row in reader:
@@ -137,7 +137,7 @@ def load_omd(data_home=None):
             return 'positive'
         elif frac_neg > 0.5 and frac_neg > frac_pos:
             return 'negative'
-    with open(filename, 'U') as infile:
+    with open(filename, 'rb') as infile:
         for _ in range(30):
             infile.readline()
         reader = csv.reader(infile, dialect=csv.excel_tab)
@@ -176,7 +176,7 @@ def load_sentistrength(data_home=None):
             return 'positive'
         else:
             return 'negative'
-    with open(filename, 'U') as infile:
+    with open(filename, 'rb') as infile:
         infile.readline()
         reader = csv.reader(infile, dialect=None,
                             delimiter='\t', quoting=csv.QUOTE_NONE)
@@ -197,7 +197,7 @@ def load_sanders(data_home=None):
     records = []
     labels = []
     database = Database(package_dir + '.db')
-    with open(filename, 'U') as infile:
+    with open(filename, 'rb') as infile:
         reader = csv.reader(infile, dialect=csv.excel)
         for row in reader:
             record, label = parse_row(row, SANDERS.mapping)
@@ -228,7 +228,7 @@ def load_semeval2013(data_home=None):
             filename = os.path.join(package_dir, filenames[split])
             if not os.path.exists(filename):
                 raise RuntimeError
-            with open(filename, 'U') as infile:
+            with open(filename, 'rb') as infile:
                 reader = csv.reader(infile, dialect=None,
                                     delimiter='\t')
                 for row in reader:
