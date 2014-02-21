@@ -181,7 +181,8 @@ def load_sentistrength(data_home=None):
         reader = csv.reader(infile, dialect=None,
                             delimiter='\t', quoting=csv.QUOTE_NONE)
         for row in reader:
-            record, label = parse_row(row, SENTISTRENGTH.mapping)
+            record, label = parse_row(row, SENTISTRENGTH.mapping,
+                                      encoding='iso-8859-1')
             records.append(record)
             label = score(float(record['mean_positive']),
                           float(record['mean_negative']))
