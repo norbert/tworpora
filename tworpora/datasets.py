@@ -1,5 +1,6 @@
 import os
 import time
+import re
 import csv
 import logging
 
@@ -102,6 +103,7 @@ def load_hcr(data_home=None):
     download_package(HCR.name, data_home)
     records = []
     labels = []
+    id_filter = re.compile(r'^\d+$')
     for idx, split in enumerate(HCR.splits):
         source_path = '%s/orig/hcr-%s.csv' % (split, split)
         url = os.path.join(HCR.url, source_path)
@@ -113,6 +115,8 @@ def load_hcr(data_home=None):
             next(reader)
             for row in reader:
                 record, label = parse_row(row, HCR.mapping)
+                if not id_filter.match(record['id']):
+                    record['id'] = None
                 record['split'] = split
                 records.append(record)
                 labels.append(label)
