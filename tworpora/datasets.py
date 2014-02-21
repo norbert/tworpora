@@ -21,6 +21,12 @@ STS = Package('sts',
     filename='testdata.manual.2009.06.14.csv',
     mapping=['label', None, 'created_at', 'query', 'screen_name', 'text'],
     labels={'4': 'positive', '0': 'negative', '2': 'neutral'})
+STS_GOLD = Package('sts-gold',
+    url=('http://tweenator.com/download/'
+         'sts_gold_v03.zip'),
+    filename='sts_gold_tweet.csv',
+    mapping=['id', 'label', 'text'],
+    labels={'4': 'positive', '0': 'negative'})
 HCR = Package('hcr',
     url=('https://bitbucket.org/speriosu/updown'
          '/raw/1deb8fe45f603a61d723cc9b987ae4f36cbe6b16'
@@ -96,6 +102,24 @@ def load_sts_test(data_home=None):
             records.append(record)
             labels.append(label)
     return Bunch(name='sts-test', data=records, target=labels)
+
+
+def load_sts_gold(data_home=None):
+    package_dir = get_package_dir(STS_GOLD.name, data_home)
+    filename = os.path.join(package_dir, STS_GOLD.filename)
+    if not os.path.exists(filename):
+        raise RuntimeError
+    records = []
+    labels = []
+    with open(filename, 'rb') as infile:
+        infile.readline()
+        reader = csv.reader(infile, dialect=csv.excel,
+                            delimiter=';')
+        for row in reader:
+            record, label = parse_row(row, STS_GOLD.mapping, STS_GOLD.labels)
+            records.append(record)
+            labels.append(label)
+    return Bunch(name=STS_GOLD.name, data=records, target=labels)
 
 
 def load_hcr(data_home=None):
@@ -247,6 +271,7 @@ def load_semeval2013(data_home=None):
 
 
 sentiment = ['load_sts_test',
+             'load_sts_gold',
              'load_hcr',
              'load_omd',
              'load_sentistrength',

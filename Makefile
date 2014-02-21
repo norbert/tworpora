@@ -10,7 +10,10 @@ DESTDIR = data
 
 STS_PATH = $(DESTDIR)/sts
 STS_ZIP = $(STS_PATH).zip
-STS_TEST_FILE = $(STS_PATH)_test.tsv
+STS_TEST_FILE = $(STS_PATH)-test.tsv
+STS_GOLD_PATH = $(DESTDIR)/sts-gold
+STS_GOLD_ZIP = $(STS_GOLD_PATH).zip
+STS_GOLD_FILE = $(STS_GOLD_PATH).tsv
 HCR_PATH = $(DESTDIR)/hcr
 HCR_FILE = $(HCR_PATH).tsv
 OMD_PATH = $(DESTDIR)/omd
@@ -26,7 +29,7 @@ SEMEVAL2013_PATH = $(DESTDIR)/semeval2013
 SEMEVAL2013_FILES = tweeti-a.dev.dist.tsv tweeti-a.dist.tsv tweeti-b.dev.dist.tsv tweeti-b.dist.tsv
 SEMEVAL2013_FILE = $(SEMEVAL2013_PATH).tsv
 
-PACKAGES = sts hcr omd sentistrength sanders semeval2013
+PACKAGES = sts_test sts_gold hcr omd sentistrength sanders semeval2013
 
 all: packages
 
@@ -34,13 +37,20 @@ requirements:
 	pip install -r requirements.txt
 
 packages: $(PACKAGES)
-sts: $(STS_TEST_FILE)
+sts_test: $(STS_TEST_FILE)
 $(STS_TEST_FILE): $(STS_PATH)
 	$(TWORPORA) sts_test > $@
 $(STS_ZIP):
 	$(CURL) -s -o $@ http://cs.stanford.edu/people/alecmgo/trainingandtestdata.zip
 $(STS_PATH): $(STS_ZIP)
 	$(UNZIP) -q $< testdata.manual.2009.06.14.csv -d $@
+sts_gold: $(STS_GOLD_FILE)
+$(STS_GOLD_FILE): $(STS_GOLD_PATH)
+	$(TWORPORA) sts_gold > $@
+$(STS_GOLD_ZIP):
+	$(CURL) -s -o $@ http://tweenator.com/download/sts_gold_v03.zip
+$(STS_GOLD_PATH): $(STS_GOLD_ZIP)
+	$(UNZIP) -q $< sts_gold_tweet.csv -d $@
 hcr: $(HCR_FILE)
 $(HCR_FILE): $(HCR_PATH)
 	$(TWORPORA) hcr > $@
@@ -84,6 +94,7 @@ clean:
 clobber: clean
 	-rm -rf -- $(DESTDIR)/*.db \
 		$(STS_ZIP) $(STS_PATH) \
+		$(STS_GOLD_ZIP) $(STS_GOLD_PATH) \
 		$(HCR_PATH) \
 		$(OMD_PATH) \
 		$(SENTISTRENGTH_ZIP) $(SENTISTRENGTH_PATH) \
