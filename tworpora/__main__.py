@@ -28,6 +28,7 @@ if args.quiet:
 
 FIELDS = ('id', 'collected_at', 'user_id', 'screen_name')
 
+
 keys = data.data[0].keys()
 headers = (['label'] +
            [f for f in FIELDS if f in keys] +
@@ -35,13 +36,20 @@ headers = (['label'] +
 headers.remove('text')
 tokenizer = re.compile(r'\s+')
 
+
 print(u'\t'.join(headers + ['text']).encode('utf-8'))
 for record, label in zip(data.data, data.target):
     text = record.get('text')
-    if isinstance(text, str) and not isinstance(text, unicode):
+    if isinstance(text, basestring) and not isinstance(text, unicode):
         text = unicode(text, 'utf-8', 'replace')
     if text:
         text = tokenizer.sub(' ', text)
     record['label'] = label
-    row = [str(record.get(key) or '') for key in headers] + [(text or '')]
+    row = []
+    for key in headers:
+        value = record.get(key) or ''
+        if not isinstance(value, basestring):
+            value = str(value)
+        row.append(value)
+    row.append(text or '')
     print(u'\t'.join(row).encode('utf-8'))
