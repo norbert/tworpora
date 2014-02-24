@@ -250,6 +250,21 @@ def load_semeval2013(data_home=None):
         texts = read_texts(database, status_ids, user_ids)
         for idx, record in enumerate(records):
             record['text'] = texts[idx]
+    def extract_phrases(records):
+        tokenizer = re.compile(r'\s')
+        for record in records:
+            if record['partition'] != 'a':
+                continue
+            text = record['text']
+            if text is None:
+                continue
+            phrase_start = int(record['phrase_start'])
+            phrase_end = int(record['phrase_end'])
+            words = tokenizer.split(text)
+            if phrase_start > len(words) or phrase_end > len(words):
+                continue
+            phrase = ' '.join(words[phrase_start:(phrase_end + 1)])
+            record['phrase'] = phrase
     for partition in SEMEVAL2013.filenames:
         mapping = SEMEVAL2013.mapping[partition]
         filenames = SEMEVAL2013.filenames[partition]
@@ -265,8 +280,9 @@ def load_semeval2013(data_home=None):
                     record['split'] = split
                     record['partition'] = partition
                     records.append(record)
-                    labels.append(label if partition == 'b' else None)
+                    labels.append(label)
     merge_texts(records)
+    extract_phrases(records)
     return Bunch(name=SEMEVAL2013.name, data=records, target=labels)
 
 
