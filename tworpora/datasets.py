@@ -2,17 +2,14 @@ import os
 import time
 import re
 import csv
-import logging
 
 
 from collections import OrderedDict, Counter
+from HTMLParser import HTMLParser as _HTMLParser
 from . import Bunch, Package, Database, HTMLReader, APIReader
 from . import get_package_dir
-from . import download_package, download_package_file
+from . import download_package_file, unzip_package_file
 from . import read_text, read_texts
-
-
-logger = logging.getLogger(__name__)
 
 
 STS = Package('sts',
@@ -29,7 +26,7 @@ STS_GOLD = Package('sts-gold',
     labels={'4': 'positive', '0': 'negative'})
 HCR = Package('hcr',
     url=('https://bitbucket.org/speriosu/updown'
-         '/raw/1deb8fe45f603a61d723cc9b987ae4f36cbe6b16'
+         '/raw/1deb8fe45f603a61d723cc9b987ae4f36cbe6b16/'
          '/data/hcr/'),
     splits=('train', 'test', 'dev'),
     mapping=['id', 'user_id', 'screen_name', 'text',
@@ -48,16 +45,16 @@ SENTISTRENGTH = Package('sentistrength',
     filename='twitter4242.txt',
     mapping=['mean_positive', 'mean_negative', 'text'])
 SANDERS = Package('sanders',
-    url=('http://www.sananalytics.com/lab/twitter-sentiment'
-         '/sanders-twitter-0.2.zip'),
-    filename='corpus.csv',
+    url=('http://www.sananalytics.com/lab/twitter-sentiment/'
+         'sanders-twitter-0.2.zip'),
+    filename='sanders-twitter-0.2/corpus.csv',
     mapping=['query', 'label', 'id'])
 SEMEVAL2013 = Package('semeval2013',
-    url=('http://www.cs.york.ac.uk/semeval-2013/task2/'
+    url=('http://www.cs.york.ac.uk/semeval-2013/task2'
          '/data/uploads/datasets/'),
     filenames={
-        'a': {None: 'tweeti-a.dist.tsv', 'dev': 'tweeti-a.dev.dist.tsv'},
-        'b': {None: 'tweeti-b.dist.tsv', 'dev': 'tweeti-b.dev.dist.tsv'}
+        'a': {'train': 'tweeti-a.dist.tsv', 'dev': 'tweeti-a.dev.dist.tsv'},
+        'b': {'train': 'tweeti-b.dist.tsv', 'dev': 'tweeti-b.dev.dist.tsv'}
     },
     mapping={
         'a':['id', 'user_id', 'phrase_start', 'phrase_end', 'label'],
@@ -68,13 +65,19 @@ SEMEVAL2013 = Package('semeval2013',
             'objective': 'neutral', 'objective-OR-neutral': 'neutral'})
 
 
-def parse_row(row, mapping, labels=None, encoding='utf-8'):
+H = _HTMLParser()
+unescape_html_entities = H.unescape
+
+
+def parse_row(row, mapping, labels=None, encoding='utf-8', unescape=True):
     record, label = OrderedDict(), None
     for idx, key in enumerate(mapping):
         if not key:
             continue
         value = unicode(row[idx], encoding) if len(row) > idx else None
         value = value.strip() if value else None
+        if key == 'text' and unescape:
+            value = unescape_html_entities(value)
         if key == 'label':
             if labels:
                 label = labels.get(value)
@@ -89,7 +92,8 @@ def load_sts_test(data_home=None):
     package_dir = get_package_dir(STS.name, data_home)
     filename = os.path.join(package_dir, STS.filename)
     if not os.path.exists(filename):
-        raise RuntimeError
+        unzip_package_file(STS.name, STS.filename,
+                           STS.url, data_home)
     records = []
     labels = []
     with open(filename, 'rb') as infile:
@@ -108,7 +112,8 @@ def load_sts_gold(data_home=None):
     package_dir = get_package_dir(STS_GOLD.name, data_home)
     filename = os.path.join(package_dir, STS_GOLD.filename)
     if not os.path.exists(filename):
-        raise RuntimeError
+        unzip_package_file(STS_GOLD.name, STS_GOLD.filename,
+                           STS_GOLD.url, data_home)
     records = []
     labels = []
     with open(filename, 'rb') as infile:
@@ -124,7 +129,6 @@ def load_sts_gold(data_home=None):
 
 def load_hcr(data_home=None):
     package_dir = get_package_dir(HCR.name, data_home)
-    download_package(HCR.name, data_home)
     records = []
     labels = []
     id_filter = re.compile(r'^\d+$')
@@ -133,7 +137,8 @@ def load_hcr(data_home=None):
         url = os.path.join(HCR.url, source_path)
         filename = os.path.join(package_dir, os.path.basename(source_path))
         if not os.path.exists(filename):
-            download_package_file(HCR.name, source_path, url, data_home)
+            download_package_file(HCR.name, source_path,
+                                  url, data_home)
         with open(filename, 'rb') as infile:
             reader = csv.reader(infile)
             next(reader)
@@ -151,7 +156,8 @@ def load_omd(data_home=None):
     package_dir = get_package_dir(OMD.name, data_home)
     filename = os.path.join(package_dir, OMD.filename)
     if not os.path.exists(filename):
-        download_package(OMD.name)
+        download_package_file(OMD.name, OMD.filename,
+                              OMD.url, data_home)
     records = []
     labels = []
 
@@ -165,7 +171,7 @@ def load_omd(data_home=None):
             return 'positive'
         elif frac_neg > 0.5 and frac_neg > frac_pos:
             return 'negative'
-    with open(filename, 'rb') as infile:
+    with open(filename, 'rbU') as infile:
         for _ in range(30):
             infile.readline()
         reader = csv.reader(infile, dialect=csv.excel_tab)
@@ -193,7 +199,8 @@ def load_sentistrength(data_home=None):
     package_dir = get_package_dir(SENTISTRENGTH.name, data_home)
     filename = os.path.join(package_dir, SENTISTRENGTH.filename)
     if not os.path.exists(filename):
-        raise RuntimeError
+        unzip_package_file(SENTISTRENGTH.name, SENTISTRENGTH.filename,
+                           SENTISTRENGTH.url, data_home)
     records = []
     labels = []
 
@@ -215,14 +222,15 @@ def load_sentistrength(data_home=None):
             label = score(float(record['mean_positive']),
                           float(record['mean_negative']))
             labels.append(label)
-    return Bunch(data=records, target=labels)
+    return Bunch(name=SENTISTRENGTH.name, data=records, target=labels)
 
 
 def load_sanders(data_home=None):
     package_dir = get_package_dir(SANDERS.name, data_home)
-    filename = os.path.join(package_dir, SANDERS.filename)
+    filename = os.path.join(package_dir, os.path.basename(SANDERS.filename))
     if not os.path.exists(filename):
-        raise RuntimeError
+        unzip_package_file(SANDERS.name, SANDERS.filename,
+                           SANDERS.url, data_home)
     records = []
     labels = []
     database = Database(package_dir + '.db')
@@ -232,13 +240,15 @@ def load_sanders(data_home=None):
             record, label = parse_row(row, SANDERS.mapping)
             text = read_text(database, record['id'],
                              reader=APIReader, sleep=6)
+            if text is not None:
+                text = unescape_html_entities(text)
             record['text'] = text
             records.append(record)
             labels.append(label)
     return Bunch(name=SANDERS.name, data=records, target=labels)
 
 
-def load_semeval2013(data_home=None):
+def load_semeval2013(partition='b', data_home=None):
     package_dir = get_package_dir(SEMEVAL2013.name, data_home)
     records = []
     labels = []
@@ -249,7 +259,11 @@ def load_semeval2013(data_home=None):
         user_ids = [r.get('user_id') for r in records]
         texts = read_texts(database, status_ids, user_ids)
         for idx, record in enumerate(records):
-            record['text'] = texts[idx]
+            text = texts[idx]
+            if text is not None:
+                text = unescape_html_entities(text)
+            record['text'] = text
+
     def extract_phrases(records):
         tokenizer = re.compile(r'\s')
         for record in records:
@@ -265,20 +279,23 @@ def load_semeval2013(data_home=None):
                 continue
             phrase = ' '.join(words[phrase_start:(phrase_end + 1)])
             record['phrase'] = phrase
-    for partition in SEMEVAL2013.filenames:
-        mapping = SEMEVAL2013.mapping[partition]
-        filenames = SEMEVAL2013.filenames[partition]
-        for split in filenames:
-            filename = os.path.join(package_dir, filenames[split])
-            if not os.path.exists(filename):
-                raise RuntimeError
-            with open(filename, 'rb') as infile:
+    for p in SEMEVAL2013.filenames:
+        if partition is not None and partition != p:
+            continue
+        mapping = SEMEVAL2013.mapping[p]
+        filenames = SEMEVAL2013.filenames[p]
+        for s, filename in filenames.iteritems():
+            sf = os.path.join(package_dir, filename)
+            if not os.path.exists(sf):
+                download_package_file(SEMEVAL2013.name, sf,
+                                      SEMEVAL2013.url + filename, data_home)
+            with open(sf, 'rb') as infile:
                 reader = csv.reader(infile, dialect=None,
                                     delimiter='\t')
                 for row in reader:
                     record, label = parse_row(row, mapping, SEMEVAL2013.labels)
-                    record['split'] = split
-                    record['partition'] = partition
+                    record['partition'] = p
+                    record['split'] = s
                     records.append(record)
                     labels.append(label)
     merge_texts(records)

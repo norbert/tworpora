@@ -34,7 +34,7 @@ headers = (['label'] +
            [f for f in FIELDS if f in keys] +
            [k for k in keys if not k in FIELDS])
 headers.remove('text')
-tokenizer = re.compile(r'\s+')
+tokenizer = re.compile(r'(?u)\s')
 
 
 print(u'\t'.join(headers + ['text']).encode('utf-8'))

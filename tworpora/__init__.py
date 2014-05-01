@@ -7,6 +7,7 @@ __all__ = ['Bunch', 'Package', 'Database', 'HTMLReader', 'APIReader',
 import os
 import time
 import itertools
+import zipfile
 import json
 import sqlite3
 import logging
@@ -165,9 +166,9 @@ def APIReader(status_id, user_id=None, client=None, sleep=None):
 def get_data_home(data_home=None):
     if data_home is None:
         data_home = os.environ.get('TWORPORA_DATA',
-                                   os.path.join(os.getcwd(), 'data'))
+                                   os.path.join(os.getcwd(), 'tworpora_data'))
     if not os.path.isdir(data_home):
-        raise RuntimeError
+        os.makedirs(data_home)
     return data_home
 
 
@@ -176,29 +177,43 @@ def get_package_dir(name, data_home=None):
     return os.path.join(data_home, name)
 
 
-def download_package(name, filename=None, data_home=None):
-    package_dir = get_package_dir(name, data_home)
-    if not os.path.isdir(package_dir):
-        os.makedirs(package_dir)
-    if filename is None:
-        return
-    download_package_file(name, filename)
-
-
-def download_package_file(name, filename, url=None, data_home=None):
-    package_dir = get_package_dir(name, data_home)
-    if not os.path.isdir(package_dir):
-        raise RuntimeError
-    url = url or package.url
-    filename = os.path.join(package_dir, os.path.basename(filename))
+def download_file(url, filename):
     infile = urllib2.urlopen(url)
     with open(filename, 'wb') as outfile:
         for block in itertools.count():
             s = infile.read(1024 * 16)
-            outfile.write(s)
             if not s:
                 break
+            outfile.write(s)
     infile.close()
+
+
+def download_package_file(name, filename, url, data_home=None):
+    package_dir = get_package_dir(name, data_home)
+    if not os.path.exists(package_dir):
+        os.makedirs(package_dir)
+    filename = os.path.join(package_dir, os.path.basename(filename))
+    download_file(url, filename)
+
+
+def unzip_package_file(name, filename, url=None, data_home=None):
+    package_dir = get_package_dir(name, data_home)
+    if not os.path.exists(package_dir):
+        os.makedirs(package_dir)
+    zip_filename = package_dir + '.zip'
+    if not os.path.exists(zip_filename):
+        if not url:
+            raise ValueError
+        download_file(url, zip_filename)
+    with zipfile.ZipFile(zip_filename) as zf:
+        fn = os.path.join(package_dir, os.path.basename(filename))
+        with open(fn, 'wb') as outfile:
+            infile = zf.open(filename)
+            for block in itertools.count():
+                s = infile.read(1024 * 16)
+                if not s:
+                    break
+                outfile.write(s)
 
 
 def read_text(database, status_id, reader=None, **kwargs):
@@ -251,8 +266,7 @@ def read_texts(database, status_ids, user_ids=None, **kwargs):
                                 n_jobs=n_jobs, verbose=verbose)(
             joblib.delayed(read_text_process)(database.filename,
                                               s, user_id=u, **kwargs)
-            for s, u in user_status_ids
-        )
+            for s, u in user_status_ids)
         for idx, (status_id, _) in enumerate(user_status_ids):
             cache[status_id] = texts[idx]
     return map(lambda x: cache[x], status_ids)
@@ -260,6 +274,5 @@ def read_texts(database, status_ids, user_ids=None, **kwargs):
 
 try:
     from . import datasets
-    from datasets import *
 except ImportError as e:
     logger.debug(e)
