@@ -69,7 +69,7 @@ H = _HTMLParser()
 unescape_html_entities = H.unescape
 
 
-def parse_row(row, mapping, labels=None, encoding='utf-8', unescape=True):
+def parse_row(row, mapping, labels=None, encoding='utf-8', unescape=False):
     record, label = OrderedDict(), None
     for idx, key in enumerate(mapping):
         if not key:
@@ -99,7 +99,8 @@ def load_sts_test(data_home=None):
     with open(filename, 'rb') as infile:
         reader = csv.reader(infile, dialect=csv.excel)
         for row in reader:
-            record, label = parse_row(row, STS.mapping, STS.labels)
+            record, label = parse_row(row, STS.mapping, STS.labels,
+                                      unescape=True)
             created_at = time.strptime(record['created_at'],
                                        '%a %b %d %H:%M:%S UTC %Y')
             record['created_at'] = int(time.mktime(created_at))
@@ -121,7 +122,8 @@ def load_sts_gold(data_home=None):
         reader = csv.reader(infile, dialect=csv.excel,
                             delimiter=';')
         for row in reader:
-            record, label = parse_row(row, STS_GOLD.mapping, STS_GOLD.labels)
+            record, label = parse_row(row, STS_GOLD.mapping, STS_GOLD.labels,
+                                      unescape=True)
             records.append(record)
             labels.append(label)
     return Bunch(name=STS_GOLD.name, data=records, target=labels)
@@ -143,7 +145,8 @@ def load_hcr(data_home=None):
             reader = csv.reader(infile)
             next(reader)
             for row in reader:
-                record, label = parse_row(row, HCR.mapping)
+                record, label = parse_row(row, HCR.mapping,
+                                          unescape=True)
                 if not id_filter.match(record['id']):
                     record['id'] = None
                 record['split'] = split
@@ -171,6 +174,7 @@ def load_omd(data_home=None):
             return 'positive'
         elif frac_neg > 0.5 and frac_neg > frac_pos:
             return 'negative'
+
     with open(filename, 'rbU') as infile:
         for _ in range(30):
             infile.readline()
@@ -211,6 +215,7 @@ def load_sentistrength(data_home=None):
             return 'positive'
         else:
             return 'negative'
+
     with open(filename, 'rb') as infile:
         infile.readline()
         reader = csv.reader(infile, dialect=None,
@@ -260,8 +265,6 @@ def load_semeval2013(partition='b', data_home=None):
         texts = read_texts(database, status_ids, user_ids)
         for idx, record in enumerate(records):
             text = texts[idx]
-            if text is not None:
-                text = unescape_html_entities(text)
             record['text'] = text
 
     def extract_phrases(records):
@@ -279,6 +282,7 @@ def load_semeval2013(partition='b', data_home=None):
                 continue
             phrase = ' '.join(words[phrase_start:(phrase_end + 1)])
             record['phrase'] = phrase
+
     for p in SEMEVAL2013.filenames:
         if partition is not None and partition != p:
             continue
